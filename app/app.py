@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, List
 
+import pandas as pd
 import plotly.express as px
 import streamlit as st
 
@@ -11,7 +12,6 @@ from utils.helpers import (
     build_progress,
     count_questions,
     format_score,
-    get_gate_percentage,
     load_json,
 )
 from utils.recommendations import build_recommendation_payload
@@ -48,8 +48,8 @@ def get_total_steps(questions_data: Dict[str, Any]) -> int:
     return len(questions_data.get("gates", [])) + 2
 
 
-def get_current_gate_index(current_step: int) -> int:
-    """Convert app step to gate index."""
+def get_gate_index(current_step: int) -> int:
+    """Convert app step to gate list index."""
     return current_step - 1
 
 
@@ -93,7 +93,7 @@ def render_sidebar(
     progress_pct = build_progress(answered_count, total_questions)
 
     with st.sidebar:
-        st.markdown("## Launch Review")
+        st.markdown("## AI Product Readiness Index")
         st.caption("Powered by the AI Product Playbook")
 
         st.progress(progress_pct / 100 if progress_pct else 0.0)
@@ -103,7 +103,7 @@ def render_sidebar(
         st.write(f"**Step:** {current_step}/{total_steps}")
 
         st.divider()
-        st.caption("This tool helps assess launch readiness across five gates:")
+        st.caption("This tool reviews five launch gates:")
         st.write("• Customer Value")
         st.write("• AI Quality")
         st.write("• Trust & Safety")
@@ -116,33 +116,33 @@ def render_welcome(
     sample_assessment: Dict[str, Any],
 ) -> None:
     """Landing screen."""
-    st.title("Launch Review")
+    st.title("AI Product Readiness Index")
     st.subheader("Assess whether your AI product is ready for launch.")
     st.caption("Estimated time: 3–5 minutes · 20 questions · Instant recommendation")
 
     st.info(
-        "This launch review is designed for AI Product Managers to evaluate readiness "
+        "The AI Product Readiness Index helps AI Product Managers evaluate launch readiness "
         "across five gates before moving a feature into beta or production."
     )
 
-    col1, col2 = st.columns(2)
+    c1, c2 = st.columns(2)
 
-    with col1:
+    with c1:
         if st.button("Start Index Review", type="primary", use_container_width=True):
             clear_answer_state(questions_data)
             st.session_state["current_step"] = 1
             st.rerun()
 
-    with col2:
+    with c2:
         if st.button("Load Sample Review", use_container_width=True):
             set_sample_answers(questions_data, sample_assessment)
-            st.session_state["current_step"] = get_total_steps(questions_data) - 1
+            st.session_state["current_step"] = len(questions_data.get("gates", [])) + 1
             st.rerun()
 
     st.markdown("---")
     st.markdown("### What this reviews")
     st.write(
-        "The app checks five product gates: Customer Value, AI Quality, Trust & Safety, "
+        "The index checks five launch gates: Customer Value, AI Quality, Trust & Safety, "
         "Operational Readiness, and Business Readiness."
     )
 
@@ -159,14 +159,14 @@ def render_gate(
     total_gate_steps: int,
 ) -> None:
     """Render one gate page."""
-    st.title("Launch Review")
+    st.title("AI Product Readiness Index")
     st.subheader(gate.get("title", "Gate"))
+
     description = gate.get("description", "")
     if description:
         st.caption(description)
 
     st.caption(f"Step {step_number} of {total_gate_steps}")
-
     st.progress((step_number - 1) / total_gate_steps)
 
     questions = gate.get("questions", [])
@@ -210,14 +210,14 @@ def render_gate(
 
         st.divider()
 
-    col1, col2 = st.columns(2)
+    c1, c2 = st.columns(2)
 
-    with col1:
+    with c1:
         if st.button("Back", use_container_width=True):
             st.session_state["current_step"] = max(0, st.session_state["current_step"] - 1)
             st.rerun()
 
-    with col2:
+    with c2:
         next_label = "View Results" if step_number == total_gate_steps - 1 else "Next"
         if st.button(next_label, type="primary", use_container_width=True):
             st.session_state["current_step"] = min(
@@ -234,8 +234,8 @@ def render_results(
     scoring_rules: Dict[str, Any],
 ) -> None:
     """Render the final scorecard."""
-    st.title("Launch Review")
-    st.subheader("Readiness Report")
+    st.title("AI Product Readiness Index")
+    st.subheader("Launch Readiness Report")
 
     answers = st.session_state.get("answers", {})
     assessment = calculate_assessment(questions_data, scoring_rules, answers)
@@ -250,15 +250,15 @@ def render_results(
     top_missing_items = recommendation_payload["top_missing_items"]
     next_actions = recommendation_payload["next_actions"]
 
-    col1, col2, col3 = st.columns(3)
+    c1, c2, c3 = st.columns(3)
 
-    with col1:
-        st.metric("Overall Score", format_score(overall_score, overall_max))
+    with c1:
+        st.metric("Readiness Index", format_score(overall_score, overall_max))
 
-    with col2:
-        st.metric("Readiness", f"{overall_pct:.1f}%")
+    with c2:
+        st.metric("Overall Readiness", f"{overall_pct:.1f}%")
 
-    with col3:
+    with c3:
         st.metric("Recommendation", recommendation)
 
     if recommendation == "Ready for Production":
@@ -273,12 +273,15 @@ def render_results(
     st.markdown("### Gate Scores")
 
     gate_results = assessment.get("gate_results", [])
-    chart_data = {
-        "Gate": [g["gate_title"] for g in gate_results],
-        "Score %": [g["percentage"] for g in gate_results],
-    }
+    chart_df = pd.DataFrame(
+        {
+            "Gate": [g["gate_title"] for g in gate_results],
+            "Score %": [g["percentage"] for g in gate_results],
+        }
+    )
+
     fig = px.bar(
-        chart_data,
+        chart_df,
         x="Gate",
         y="Score %",
         text="Score %",
@@ -297,20 +300,18 @@ def render_results(
     blockers = assessment.get("launch_blockers", [])
     if blockers:
         for blocker in blockers:
-            st.error(
-                f"**{blocker.get('gate_title', 'Gate')}** — {blocker.get('prompt', '')}"
-            )
+            st.error(f"**{blocker.get('gate_title', 'Gate')}** — {blocker.get('prompt', '')}")
     else:
         st.success("No critical launch blockers detected.")
 
-    st.markdown("### Top Missing Items")
+    st.markdown("### Top Risks")
     if top_missing_items:
         for item in top_missing_items:
             st.write(f"• {item}")
     else:
         st.write("No major missing items detected.")
 
-    st.markdown("### Recommended Next Actions")
+    st.markdown("### Next Actions")
     if next_actions:
         for action in next_actions:
             st.write(f"• {action}")
@@ -328,7 +329,9 @@ def render_results(
                     answer = failed.get("answer", "no answer")
                     points = failed.get("points", 0)
                     critical = "Critical" if failed.get("critical", False) else "Non-critical"
-                    st.write(f"• {label} — Answer: {answer.title()} — {points} points — {critical}")
+                    st.write(
+                        f"• {label} — Answer: {answer.title()} — {points} points — {critical}"
+                    )
             else:
                 st.write("All questions in this gate passed.")
 
@@ -338,12 +341,12 @@ def render_results(
         "it makes readiness explicit and easier to review with engineering, operations, and risk partners."
     )
 
-    col1, col2 = st.columns(2)
-    with col1:
+    c1, c2 = st.columns(2)
+    with c1:
         if st.button("Back to Review", use_container_width=True):
             st.session_state["current_step"] = len(questions_data.get("gates", []))
             st.rerun()
-    with col2:
+    with c2:
         if st.button("Restart Review", type="primary", use_container_width=True):
             clear_answer_state(questions_data)
             st.session_state["current_step"] = 0
@@ -380,11 +383,6 @@ def main() -> None:
         return
 
     render_results(questions_data, scoring_rules)
-
-
-def get_gate_index(current_step: int) -> int:
-    """Convert app step to gate list index."""
-    return current_step - 1
 
 
 if __name__ == "__main__":
