@@ -100,7 +100,13 @@ def render_sidebar(
         st.write(f"**Progress:** {progress_pct:.0f}%")
         st.write(f"**Answered:** {answered_count}/{total_questions}")
         st.write(f"**Critical questions:** {critical_questions}")
-        st.write(f"**Step:** {current_step}/{total_steps}")
+        gate_count = len(questions_data.get("gates", []))
+if current_step == 0:
+    st.write("**Stage:** Not started")
+elif current_step <= gate_count:
+    st.write(f"**Gate:** {current_step}/{gate_count}")
+else:
+    st.write("**Stage:** Readiness report")
 
         st.divider()
         st.caption("This tool reviews five launch gates:")
@@ -321,7 +327,11 @@ def render_results(
     st.markdown("### Gate Details")
     for gate in gate_results:
         with st.expander(
-            f"{gate['gate_title']} — {gate['score']}/{gate['max_score']} ({gate['percentage']}%)"
+            (
+    f"{gate['gate_title']} — "
+    f"{gate['score']:.1f}/{gate['max_score']:.0f} "
+    f"({gate['percentage']:.1f}%)"
+    )
         ):
             if gate.get("failed_questions"):
                 for failed in gate["failed_questions"]:

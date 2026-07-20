@@ -126,7 +126,11 @@ def calculate_assessment(
     answers: Dict[str, Any],
 ) -> Dict[str, Any]:
     """
-    Calculate gate scores, overall score, blockers, and recommendation.
+    Calculate normalized gate scores, overall score, blockers,
+    and launch recommendation.
+
+    Every gate contributes equally to the final score, even when
+    gates contain different numbers of questions.
     """
     answer_scores = scoring_rules.get("answer_scores", {})
     recommendation_rules = scoring_rules.get("recommendation_rules", [])
@@ -135,16 +139,29 @@ def calculate_assessment(
         "Additional Review Required",
     )
 
+    target_gate_max = float(scoring_rules.get("gate_max_score", 20))
+    gates = questions_data.get("gates", [])
+
     gate_results: List[Dict[str, Any]] = []
-    total_score = 0
-    total_max_score = 0
+    total_score = 0.0
     all_failed_questions: List[Dict[str, Any]] = []
 
-    for gate in questions_data.get("gates", []):
-        gate_score, gate_max_score, failed_questions = calculate_gate_score(
+    for gate in gates:
+        raw_score, raw_max_score, failed_questions = calculate_gate_score(
             gate=gate,
             answers=answers,
             answer_scores=answer_scores,
+        )
+
+        percentage = (
+            round((raw_score / raw_max_score) * 100, 1)
+            if raw_max_score
+            else 0.0
+        )
+
+        normalized_score = round(
+            (percentage / 100) * target_gate_max,
+            1,
         )
 
         gate_results.append(
@@ -152,30 +169,38 @@ def calculate_assessment(
                 "gate_id": gate.get("id"),
                 "gate_title": gate.get("title"),
                 "description": gate.get("description", ""),
-                "score": gate_score,
-                "max_score": gate_max_score,
+                "score": normalized_score,
+                "max_score": target_gate_max,
+                "raw_score": raw_score,
+                "raw_max_score": raw_max_score,
+                "percentage": percentage,
                 "failed_questions": failed_questions,
-                "percentage": round((gate_score / gate_max_score) * 100, 1) if gate_max_score else 0,
             }
         )
 
-        total_score += gate_score
-        total_max_score += gate_max_score
+        total_score += normalized_score
         all_failed_questions.extend(failed_questions)
+
+    overall_max_score = round(target_gate_max * len(gates), 1)
+    overall_score = round(total_score, 1)
 
     launch_blockers = get_launch_blockers(questions_data, answers)
 
     recommendation = determine_recommendation(
-        overall_score=total_score,
+        overall_score=overall_score,
         blockers=launch_blockers,
         recommendation_rules=recommendation_rules,
         critical_failure_recommendation=critical_failure_recommendation,
     )
 
     return {
-        "overall_score": total_score,
-        "overall_max_score": total_max_score,
-        "overall_percentage": round((total_score / total_max_score) * 100, 1) if total_max_score else 0,
+        "overall_score": overall_score,
+        "overall_max_score": overall_max_score,
+        "overall_percentage": (
+            round((overall_score / overall_max_score) * 100, 1)
+            if overall_max_score
+            else 0.0
+        ),
         "recommendation": recommendation,
         "gate_results": gate_results,
         "launch_blockers": launch_blockers,
