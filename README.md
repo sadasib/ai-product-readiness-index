@@ -1,4 +1,4 @@
-# 🚀 AI Product Readiness Index
+# AI Product Readiness Index
 
 > **A practical launch review tool that helps AI Product Managers determine whether an AI product is ready for Beta or Production.**
 
@@ -16,7 +16,7 @@ The goal is to help product teams make better launch decisions.
 
 ---
 
-# ✨ Why This Project Exists
+# Why This Project Exists
 
 AI launches are often reviewed using:
 
@@ -39,7 +39,7 @@ This project brings those dimensions together into a single guided launch review
 
 ---
 
-# 🎯 Who This Is For
+# Who This Is For
 
 This project is designed for:
 
@@ -52,7 +52,7 @@ This project is designed for:
 
 ---
 
-# 🧭 The Five Launch Gates
+# The Five Launch Gates
 
 Every launch review evaluates readiness across five dimensions.
 
@@ -68,15 +68,15 @@ A(Customer Value)
 
 | Gate                    | Question                                      |
 | ----------------------- | --------------------------------------------- |
-| 🎯 Customer Value       | Are we solving a meaningful customer problem? |
-| 🤖 AI Quality           | Is the AI consistently good enough?           |
-| 🛡 Trust & Safety       | Can customers trust the system?               |
-| ⚙ Operational Readiness | Can the organization support the feature?     |
-| 📈 Business Readiness   | Does the product create measurable value?     |
+| Customer Value       | Are we solving a meaningful customer problem? |
+| AI Quality           | Is the AI consistently good enough?           |
+| Trust & Safety       | Can customers trust the system?               |
+| Operational Readiness | Can the organization support the feature?     |
+| Business Readiness   | Does the product create measurable value?     |
 
 ---
 
-# 🖥 Product Workflow
+# Product Workflow
 
 ```mermaid
 flowchart TD
@@ -109,7 +109,7 @@ Each answer contributes to:
 
 ---
 
-# 📊 Sample Output
+# Sample Output
 
 The final report provides:
 
@@ -147,7 +147,7 @@ Recommended Actions
 
 ---
 
-# 📸 Screenshots
+# Screenshots
 
 ## Landing Page
 
@@ -169,7 +169,7 @@ screenshots/results-page.png
 
 ---
 
-# 🏗 Repository Structure
+# Repository Structure
 
 ```text
 ai-product-readiness-index/
@@ -198,7 +198,7 @@ ai-product-readiness-index/
 
 ---
 
-# ⚡ Running Locally
+# Running Locally
 
 ```bash
 python3 -m venv .venv
@@ -212,7 +212,7 @@ streamlit run app/app.py
 
 ---
 
-# 🧠 Design Principles
+# Design Principles
 
 The application is built around a few simple principles.
 
@@ -225,7 +225,7 @@ The application is built around a few simple principles.
 
 ---
 
-# 🗺 Roadmap
+# Roadmap
 
 ## Version 1
 
@@ -257,7 +257,7 @@ The application is built around a few simple principles.
 
 ---
 
-# 🌎 AI Product Ecosystem
+# AI Product Ecosystem
 
 This project is part of a broader AI Product Management portfolio.
 
@@ -281,7 +281,7 @@ A --> D[Retail AI Agent Demo]
 
 ---
 
-# 🤝 Contributing
+# Contributing
 
 Ideas, improvements, and constructive feedback are always welcome.
 
@@ -289,7 +289,7 @@ If you've used the AI Product Readiness Index in your own work, I'd love to hear
 
 ---
 
-# ⚠ Disclaimer
+# Disclaimer
 
 This repository is a personal portfolio project created for learning and knowledge sharing.
 
