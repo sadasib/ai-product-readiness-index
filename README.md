@@ -1,12 +1,10 @@
 # AI Product Readiness Index
 
-> **A practical launch review tool that helps AI Product Managers determine whether an AI product is ready for Beta or Production.**
+A practical launch review tool that helps AI Product Managers determine whether an AI product is ready for Beta or Production.
 
 Building an AI feature is only half the challenge.
 
-The harder question is:
-
-> **"Is this AI product actually ready to launch?"**
+The harder question is: _Is this AI product actually ready to launch?_
 
 The **AI Product Readiness Index** provides a structured, repeatable launch review that evaluates AI products across **five critical launch gates**, identifies launch blockers, and generates actionable recommendations before release.
 
