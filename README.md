@@ -10,6 +10,10 @@ The **AI Product Readiness Index** helps product teams evaluate launch readiness
 
 Rather than producing only a score, it identifies **launch blockers**, **top risks**, **recommended next actions**, and a clear **launch recommendation**.
 
+## Live Demo
+
+[Open the AI Product Readiness Index](https://ai-readiness-index-by-sadasib.streamlit.app/)
+
 ---
 
 # Why I Built This
