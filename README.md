@@ -149,21 +149,11 @@ Recommended Actions
 
 ## Landing Page
 
-> *(Add screenshot here)*
-
-```
-screenshots/landing-page.png
-```
-
----
+![AI Product Readiness Index landing page](screenshots/landing-page.png)
 
 ## Launch Readiness Report
 
-> *(Add screenshot here)*
-
-```
-screenshots/results-page.png
-```
+![AI Product Readiness Index report](screenshots/readiness-report.png)
 
 ---
 

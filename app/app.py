@@ -44,13 +44,22 @@ def load_inputs() -> tuple[Dict[str, Any], Dict[str, Any], Dict[str, Any]]:
 
 
 def get_total_steps(questions_data: Dict[str, Any]) -> int:
-    """Welcome + gates + results."""
+    """Welcome + five gates + results."""
     return len(questions_data.get("gates", [])) + 2
 
 
 def get_gate_index(current_step: int) -> int:
-    """Convert app step to gate list index."""
+    """Convert current step to gate list index."""
     return current_step - 1
+
+
+def get_stage_label(current_step: int, gate_count: int) -> str:
+    """Return a simple label for the current app stage."""
+    if current_step == 0:
+        return "Not started"
+    if 1 <= current_step <= gate_count:
+        return f"Gate {current_step}/{gate_count}"
+    return "Readiness report"
 
 
 def clear_answer_state(questions_data: Dict[str, Any]) -> None:
@@ -76,10 +85,9 @@ def set_sample_answers(
             qid = question.get("id")
             widget_key = f"answer_{qid}"
             raw_answer = answer_label(answers.get(qid))
-            if raw_answer in {"Yes", "Partial", "No"}:
-                st.session_state[widget_key] = raw_answer
-            else:
-                st.session_state[widget_key] = "Select an answer"
+            st.session_state[widget_key] = (
+                raw_answer if raw_answer in {"Yes", "Partial", "No"} else "Select an answer"
+            )
 
 
 def render_sidebar(
@@ -92,6 +100,9 @@ def render_sidebar(
     answered_count = len(st.session_state.get("answers", {}))
     progress_pct = build_progress(answered_count, total_questions)
 
+    gate_count = len(questions_data.get("gates", []))
+    stage_label = get_stage_label(current_step, gate_count)
+
     with st.sidebar:
         st.markdown("## AI Product Readiness Index")
         st.caption("Powered by the AI Product Playbook")
@@ -100,13 +111,8 @@ def render_sidebar(
         st.write(f"**Progress:** {progress_pct:.0f}%")
         st.write(f"**Answered:** {answered_count}/{total_questions}")
         st.write(f"**Critical questions:** {critical_questions}")
-        gate_count = len(questions_data.get("gates", []))
-if current_step == 0:
-    st.write("**Stage:** Not started")
-elif current_step <= gate_count:
-    st.write(f"**Gate:** {current_step}/{gate_count}")
-else:
-    st.write("**Stage:** Readiness report")
+        st.write(f"**Stage:** {stage_label}")
+        st.write(f"**Step:** {current_step}/{total_steps}")
 
         st.divider()
         st.caption("This tool reviews five launch gates:")
@@ -125,6 +131,11 @@ def render_welcome(
     st.title("AI Product Readiness Index")
     st.subheader("Assess whether your AI product is ready for launch.")
     st.caption("Estimated time: 3–5 minutes · 20 questions · Instant recommendation")
+
+    left, middle, right = st.columns(3)
+    left.metric("Time", "3–5 min")
+    middle.metric("Questions", "20")
+    right.metric("Launch gates", "5")
 
     st.info(
         "The AI Product Readiness Index helps AI Product Managers evaluate launch readiness "
@@ -173,13 +184,12 @@ def render_gate(
         st.caption(description)
 
     st.caption(f"Step {step_number} of {total_gate_steps}")
-    st.progress((step_number - 1) / total_gate_steps)
+    st.progress(min(step_number / total_gate_steps, 1.0))
 
     questions = gate.get("questions", [])
     answers = st.session_state.setdefault("answers", {})
 
     unanswered = 0
-
     for idx, question in enumerate(questions, start=1):
         qid = question.get("id")
         prompt = question.get("prompt", "")
@@ -198,12 +208,10 @@ def render_gate(
             st.caption(help_text)
 
         options = ["Select an answer", "Yes", "Partial", "No"]
-        current_index = options.index(current_value)
-
         selected = st.selectbox(
             "Answer",
             options,
-            index=current_index,
+            index=options.index(current_value),
             key=widget_key,
             label_visibility="collapsed",
         )
@@ -224,15 +232,28 @@ def render_gate(
             st.rerun()
 
     with c2:
-        next_label = "View Results" if step_number == total_gate_steps - 1 else "Next"
+        next_label = "View Results" if step_number == total_gate_steps else "Next"
         if st.button(next_label, type="primary", use_container_width=True):
             st.session_state["current_step"] = min(
-                total_gate_steps - 1, st.session_state["current_step"] + 1
+                total_gate_steps,
+                st.session_state["current_step"] + 1,
             )
             st.rerun()
 
     if unanswered:
         st.caption(f"{unanswered} question(s) on this gate are still unanswered.")
+
+
+def render_recommendation_banner(recommendation: str, confidence: str) -> None:
+    """Render a colored launch decision banner."""
+    if recommendation == "Ready for Production":
+        st.success(f"**{recommendation}** — Confidence: {confidence}")
+    elif recommendation == "Ready for Beta":
+        st.info(f"**{recommendation}** — Confidence: {confidence}")
+    elif recommendation == "Additional Review Required":
+        st.warning(f"**{recommendation}** — Confidence: {confidence}")
+    else:
+        st.error(f"**{recommendation}** — Confidence: {confidence}")
 
 
 def render_results(
@@ -247,8 +268,8 @@ def render_results(
     assessment = calculate_assessment(questions_data, scoring_rules, answers)
     recommendation_payload = build_recommendation_payload(assessment)
 
-    overall_score = int(assessment["overall_score"])
-    overall_max = int(assessment["overall_max_score"])
+    overall_score = float(assessment["overall_score"])
+    overall_max = float(assessment["overall_max_score"])
     overall_pct = float(assessment["overall_percentage"])
 
     recommendation = recommendation_payload["recommendation"]
@@ -257,50 +278,42 @@ def render_results(
     next_actions = recommendation_payload["next_actions"]
 
     c1, c2, c3 = st.columns(3)
-
     with c1:
-        st.metric("Readiness Index", format_score(overall_score, overall_max))
-
+        st.metric("Readiness Index", format_score(round(overall_score), round(overall_max)))
     with c2:
         st.metric("Overall Readiness", f"{overall_pct:.1f}%")
-
     with c3:
         st.metric("Recommendation", recommendation)
 
-    if recommendation == "Ready for Production":
-        st.success(f"Confidence: {confidence}")
-    elif recommendation == "Ready for Beta":
-        st.info(f"Confidence: {confidence}")
-    elif recommendation == "Additional Review Required":
-        st.warning(f"Confidence: {confidence}")
-    else:
-        st.error(f"Confidence: {confidence}")
+    render_recommendation_banner(recommendation, confidence)
 
     st.markdown("### Gate Scores")
-
     gate_results = assessment.get("gate_results", [])
-    chart_df = pd.DataFrame(
-        {
-            "Gate": [g["gate_title"] for g in gate_results],
-            "Score %": [g["percentage"] for g in gate_results],
-        }
-    )
 
-    fig = px.bar(
-        chart_df,
-        x="Gate",
-        y="Score %",
-        text="Score %",
-        range_y=[0, 100],
-    )
-    fig.update_traces(texttemplate="%{text:.1f}%", textposition="outside")
-    fig.update_layout(
-        yaxis_title="Score %",
-        xaxis_title="",
-        showlegend=False,
-        margin=dict(l=10, r=10, t=30, b=10),
-    )
-    st.plotly_chart(fig, use_container_width=True)
+    if gate_results:
+        chart_df = pd.DataFrame(
+            {
+                "Gate": [g["gate_title"] for g in gate_results],
+                "Score %": [g["percentage"] for g in gate_results],
+            }
+        )
+        fig = px.bar(
+            chart_df,
+            x="Gate",
+            y="Score %",
+            text="Score %",
+            range_y=[0, 100],
+        )
+        fig.update_traces(texttemplate="%{text:.1f}%", textposition="outside")
+        fig.update_layout(
+            yaxis_title="Score %",
+            xaxis_title="",
+            showlegend=False,
+            margin=dict(l=10, r=10, t=30, b=10),
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("No gate scores available yet.")
 
     st.markdown("### Launch Blockers")
     blockers = assessment.get("launch_blockers", [])
@@ -326,15 +339,17 @@ def render_results(
 
     st.markdown("### Gate Details")
     for gate in gate_results:
+        gate_title = gate["gate_title"]
+        gate_score = gate["score"]
+        gate_max_score = gate["max_score"]
+        gate_percentage = gate["percentage"]
+
         with st.expander(
-            (
-    f"{gate['gate_title']} — "
-    f"{gate['score']:.1f}/{gate['max_score']:.0f} "
-    f"({gate['percentage']:.1f}%)"
-    )
+            f"{gate_title} — {gate_score:.1f}/{gate_max_score:.0f} ({gate_percentage:.1f}%)"
         ):
-            if gate.get("failed_questions"):
-                for failed in gate["failed_questions"]:
+            failed_questions = gate.get("failed_questions", [])
+            if failed_questions:
+                for failed in failed_questions:
                     label = failed.get("prompt", "")
                     answer = failed.get("answer", "no answer")
                     points = failed.get("points", 0)
@@ -368,27 +383,31 @@ def main() -> None:
 
     if "current_step" not in st.session_state:
         st.session_state["current_step"] = 0
-
     if "answers" not in st.session_state:
         st.session_state["answers"] = {}
 
     total_steps = get_total_steps(questions_data)
     current_step = int(st.session_state["current_step"])
 
-    render_sidebar(questions_data, current_step=current_step, total_steps=total_steps)
+    render_sidebar(
+        questions_data=questions_data,
+        current_step=current_step,
+        total_steps=total_steps,
+    )
 
     gates = questions_data.get("gates", [])
+    gate_count = len(gates)
 
     if current_step == 0:
         render_welcome(questions_data, sample_assessment)
         return
 
-    if 1 <= current_step <= len(gates):
+    if 1 <= current_step <= gate_count:
         gate = gates[get_gate_index(current_step)]
         render_gate(
             gate=gate,
             step_number=current_step,
-            total_gate_steps=total_steps - 1,
+            total_gate_steps=gate_count,
         )
         return
 

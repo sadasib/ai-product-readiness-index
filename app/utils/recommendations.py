@@ -86,18 +86,30 @@ def build_next_actions(
             continue
 
         lower = prompt.lower()
-        if "roi" in lower or "business" in lower:
+        if "hallucination" in lower:
+            action = "Define and validate an acceptable hallucination threshold."
+        elif "bias" in lower or "fairness" in lower:
+            action = "Complete a bias and fairness review."
+        elif "alert" in lower:
+            action = "Define alert thresholds and incident triggers."
+        elif "golden dataset" in lower or "evaluation set" in lower:
+            action = "Create a representative evaluation dataset."
+        elif "roi" in lower or "business" in lower:
             action = "Clarify the business case and expected ROI."
         elif "persona" in lower or "customer problem" in lower:
             action = "Refine the customer problem definition."
         elif "journey" in lower:
             action = "Document the customer journey more clearly."
         elif "metrics" in lower or "success" in lower:
-            action = "Define success metrics for the launch."
+            action = "Define measurable launch success criteria."
         elif "support" in lower:
             action = "Confirm support readiness and escalation coverage."
+        elif "rollout" in lower:
+            action = "Document and approve a phased rollout strategy."
+        elif "sponsor" in lower:
+            action = "Identify an accountable executive sponsor."
         else:
-            action = f"Review: {prompt}"
+            action = f"Review and address: {prompt}"
 
         if action not in actions:
             actions.append(action)
