@@ -10,20 +10,20 @@ DATA_DIR = ROOT_DIR / "data"
 
 
 def load_json(path: Path) -> Dict[str, Any]:
-    """Load a JSON file and return its contents."""
+    """Load a JSON file from disk."""
     with path.open("r", encoding="utf-8") as f:
         return json.load(f)
 
 
 def normalize_answer(answer: Any) -> str:
-    """Normalize answers to lowercase strings."""
+    """Normalize a raw answer value."""
     if answer is None:
         return ""
     return str(answer).strip().lower()
 
 
 def score_answer(answer: Any, answer_scores: Dict[str, int]) -> int:
-    """Convert a user answer to points."""
+    """Convert a user answer into points."""
     normalized = normalize_answer(answer)
     return int(answer_scores.get(normalized, 0))
 
@@ -33,7 +33,7 @@ def get_launch_blockers(
     answers: Dict[str, Any],
 ) -> List[Dict[str, Any]]:
     """
-    Return critical questions that were answered 'no' or left blank.
+    Return critical questions that were not answered 'yes'.
     """
     blockers: List[Dict[str, Any]] = []
 
@@ -66,11 +66,13 @@ def calculate_gate_score(
 ) -> Tuple[int, int, List[Dict[str, Any]]]:
     """
     Score a single gate.
+
     Returns:
-        (gate_score, gate_max_score, failed_questions)
+        (raw_gate_score, raw_gate_max_score, failed_questions)
     """
     questions = gate.get("questions", [])
-    gate_max_score = len(questions) * int(max(answer_scores.values(), default=0))
+    max_answer_points = int(max(answer_scores.values(), default=0))
+    gate_max_score = len(questions) * max_answer_points
 
     gate_score = 0
     failed_questions: List[Dict[str, Any]] = []
@@ -79,15 +81,19 @@ def calculate_gate_score(
         qid = question.get("id")
         answer = answers.get(qid)
         points = score_answer(answer, answer_scores)
+        normalized_answer = normalize_answer(answer)
+
         gate_score += points
 
-        if normalize_answer(answer) != "yes":
+        if normalized_answer != "yes":
             failed_questions.append(
                 {
                     "question_id": qid,
+                    "gate_id": gate.get("id"),
+                    "gate_title": gate.get("title"),
                     "prompt": question.get("prompt"),
                     "critical": bool(question.get("critical", False)),
-                    "answer": normalize_answer(answer) or "no answer",
+                    "answer": normalized_answer or "no answer",
                     "points": points,
                 }
             )
@@ -96,7 +102,7 @@ def calculate_gate_score(
 
 
 def determine_recommendation(
-    overall_score: int,
+    overall_score: float,
     blockers: List[Dict[str, Any]],
     recommendation_rules: List[Dict[str, Any]],
     critical_failure_recommendation: str = "Additional Review Required",
@@ -108,14 +114,12 @@ def determine_recommendation(
         return critical_failure_recommendation
 
     for rule in recommendation_rules:
-        min_score = int(rule.get("min_score", 0))
-        max_score = int(rule.get("max_score", 100))
-        requires_no_launch_blockers = bool(rule.get("requires_no_launch_blockers", False))
+        min_score = float(rule.get("min_score", 0))
+        max_score = float(rule.get("max_score", 100))
+        label = str(rule.get("label", "Additional Review Required"))
 
         if min_score <= overall_score <= max_score:
-            if requires_no_launch_blockers:
-                return str(rule.get("label", "Additional Review Required"))
-            return str(rule.get("label", "Additional Review Required"))
+            return label
 
     return "Not Ready"
 
@@ -126,11 +130,10 @@ def calculate_assessment(
     answers: Dict[str, Any],
 ) -> Dict[str, Any]:
     """
-    Calculate normalized gate scores, overall score, blockers,
-    and launch recommendation.
+    Calculate normalized gate scores, overall score, blockers, and recommendation.
 
-    Every gate contributes equally to the final score, even when
-    gates contain different numbers of questions.
+    Every gate contributes equally to the final score, even when gates contain
+    different numbers of questions.
     """
     answer_scores = scoring_rules.get("answer_scores", {})
     recommendation_rules = scoring_rules.get("recommendation_rules", [])
@@ -153,16 +156,13 @@ def calculate_assessment(
             answer_scores=answer_scores,
         )
 
-        percentage = (
+        raw_percentage = (
             round((raw_score / raw_max_score) * 100, 1)
             if raw_max_score
             else 0.0
         )
 
-        normalized_score = round(
-            (percentage / 100) * target_gate_max,
-            1,
-        )
+        normalized_score = round((raw_percentage / 100) * target_gate_max, 1)
 
         gate_results.append(
             {
@@ -173,7 +173,7 @@ def calculate_assessment(
                 "max_score": target_gate_max,
                 "raw_score": raw_score,
                 "raw_max_score": raw_max_score,
-                "percentage": percentage,
+                "percentage": raw_percentage,
                 "failed_questions": failed_questions,
             }
         )

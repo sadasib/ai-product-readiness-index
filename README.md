@@ -1,147 +1,63 @@
-# AI Product Readiness Index
+# 🚀 AI Product Readiness Index
 
-A practical launch review tool that helps AI Product Managers determine whether an AI product is ready for Beta or Production.
+> **A practical launch review tool for AI Product Managers to evaluate whether an AI product is ready for Beta or Production.**
 
-Building an AI feature is only half the challenge.
+Building an AI feature is relatively easy.
 
-The harder question is: _Is this AI product actually ready to launch?_
+Building confidence to launch it is much harder.
 
-The **AI Product Readiness Index** provides a structured, repeatable launch review that evaluates AI products across **five critical launch gates**, identifies launch blockers, and generates actionable recommendations before release.
+The **AI Product Readiness Index** helps product teams evaluate launch readiness using a structured review across **Customer Value, AI Quality, Trust & Safety, Operational Readiness, and Business Readiness**.
 
-Unlike traditional scorecards, the goal is **not simply to assign a score**.
-
-The goal is to help product teams make better launch decisions.
+Rather than producing only a score, it identifies **launch blockers**, **top risks**, **recommended next actions**, and a clear **launch recommendation**.
 
 ---
 
-# Why This Project Exists
+# Why I Built This
 
-AI launches are often reviewed using:
+Most AI launch reviews today are spread across:
 
-* spreadsheets
-* scattered documentation
-* subjective discussions
-* inconsistent quality standards
+* PRDs
+* Evaluation documents
+* Risk registers
+* Launch checklists
+* Executive reviews
+* Tribal knowledge
 
-As AI products become more complex, launch readiness requires evaluating much more than model accuracy.
+As a result, launch decisions often become subjective and inconsistent.
 
-Teams must consider:
+I wanted a lightweight product that could answer one simple question:
 
-* customer value
-* AI quality
-* trust & safety
-* operational readiness
-* business readiness
-
-This project brings those dimensions together into a single guided launch review.
-
----
-
-# Who This Is For
-
-This project is designed for:
-
-* AI Product Managers
-* Product Leaders
-* Engineering Managers
-* Applied AI Teams
-* Technical Program Managers
-* AI Strategy & Innovation Teams
-
----
-
-# The Five Launch Gates
-
-Every launch review evaluates readiness across five dimensions.
-
-```mermaid
-flowchart LR
-
-A(Customer Value)
--->B(AI Quality)
--->C(Trust & Safety)
--->D(Operational Readiness)
--->E(Business Readiness)
-```
-
-| Gate                    | Question                                      |
-| ----------------------- | --------------------------------------------- |
-| Customer Value       | Are we solving a meaningful customer problem? |
-| AI Quality           | Is the AI consistently good enough?           |
-| Trust & Safety       | Can customers trust the system?               |
-| Operational Readiness | Can the organization support the feature?     |
-| Business Readiness   | Does the product create measurable value?     |
+> **"Is this AI product ready to launch?"**
 
 ---
 
 # Product Workflow
 
 ```mermaid
-flowchart TD
+flowchart LR
 
-A(Start Index Review)
+A[Customer Value]
 
--->B(Customer Value)
+-->B[AI Quality]
 
--->C(AI Quality)
+-->C[Trust & Safety]
 
--->D(Trust & Safety)
+-->D[Operational Readiness]
 
--->E(Operational Readiness)
+-->E[Business Readiness]
 
--->F(Business Readiness)
-
--->G(Launch Readiness Report)
+-->F[Launch Recommendation]
 ```
 
-The application guides users through approximately **20 launch readiness questions**.
+Users complete a guided review consisting of **20 questions** across five launch gates.
 
-Each answer contributes to:
+The application then generates:
 
-* Readiness Index
-* Gate Scores
-* Launch Blockers
-* Top Risks
-* Recommended Next Actions
-* Launch Recommendation
-
----
-
-# Sample Output
-
-The final report provides:
-
-* ✅ Readiness Index
-* ✅ Launch Recommendation
-* ✅ Confidence Level
-* ✅ Gate-by-Gate Scores
-* ✅ Launch Blockers
-* ✅ Top Risks
+* 📊 Readiness Index
+* 🚦 Launch Recommendation
+* ⚠ Launch Blockers
+* 🔍 Top Risks
 * ✅ Recommended Next Actions
-
-Example recommendation:
-
-```text
-Launch Decision
-
-🟡 READY FOR BETA
-
-Confidence
-
-HIGH
-
-Top Risks
-
-• Human evaluation incomplete
-
-• Rollback strategy missing
-
-Recommended Actions
-
-• Complete Human Evaluation
-
-• Create Rollback Plan
-```
 
 ---
 
@@ -149,11 +65,86 @@ Recommended Actions
 
 ## Landing Page
 
-![AI Product Readiness Index landing page](screenshots/landing-page.png)
+![Landing Page](screenshots/landing-page.png)
+
+---
 
 ## Launch Readiness Report
 
-![AI Product Readiness Index report](screenshots/readiness-report.png)
+![Launch Readiness Report](screenshots/readiness-report.png)
+
+---
+
+# What Makes This Different?
+
+Unlike traditional scorecards, the AI Product Readiness Index combines:
+
+* Structured product thinking
+* AI evaluation principles
+* Responsible AI practices
+* Operational readiness
+* Executive launch decision support
+
+The objective isn't simply to calculate a score.
+
+The objective is to improve launch decisions.
+
+---
+
+# Launch Gates
+
+| Gate                    | Key Question                                        |
+| ----------------------- | --------------------------------------------------- |
+| 🎯 Customer Value       | Are we solving a meaningful customer problem?       |
+| 🤖 AI Quality           | Is the AI consistently good enough?                 |
+| 🛡 Trust & Safety       | Can customers trust the system?                     |
+| ⚙ Operational Readiness | Can the organization monitor, support, and recover? |
+| 📈 Business Readiness   | Does the product create measurable business value?  |
+
+---
+
+# Example Output
+
+The application generates a launch review containing:
+
+* Readiness Index
+* Overall Readiness %
+* Launch Recommendation
+* Confidence Level
+* Gate Scores
+* Launch Blockers
+* Top Risks
+* Recommended Next Actions
+
+Example:
+
+```text
+AI Product Readiness Index
+
+88 / 100
+
+Recommendation
+
+READY FOR BETA
+
+Confidence
+
+Moderate
+
+Launch Blockers
+
+• Escalation behavior not fully validated
+
+Top Risks
+
+• Human evaluation incomplete
+• Rollback strategy missing
+
+Recommended Next Actions
+
+• Complete Human Evaluation
+• Validate Escalation Workflow
+```
 
 ---
 
@@ -164,8 +155,7 @@ ai-product-readiness-index/
 
 ├── app/
 │   ├── app.py
-│   ├── utils/
-│   └── assets/
+│   └── utils/
 │
 ├── data/
 │   ├── questions.json
@@ -175,8 +165,8 @@ ai-product-readiness-index/
 ├── docs/
 │   ├── PRD.md
 │   ├── UX_Flow.md
-│   ├── Architecture.md
-│   └── Scoring_Model.md
+│   ├── Scoring_Model.md
+│   └── Architecture.md
 │
 ├── screenshots/
 │
@@ -202,14 +192,14 @@ streamlit run app/app.py
 
 # Design Principles
 
-The application is built around a few simple principles.
+The AI Product Readiness Index is built around six principles:
 
-* Customer problems before model capabilities
-* Product judgment over model metrics
-* Transparent scoring
-* Responsible AI by design
-* Launch decisions supported by evidence
-* Simplicity over complexity
+* Customer problems before model capabilities.
+* Product judgment over model metrics.
+* Transparent scoring.
+* Responsible AI by design.
+* Launch decisions supported by evidence.
+* Simplicity over complexity.
 
 ---
 
@@ -222,16 +212,16 @@ The application is built around a few simple principles.
 * ✅ Readiness Index
 * ✅ Launch Blockers
 * ✅ Recommendation Engine
-* ✅ Streamlit MVP
+* ✅ Interactive Streamlit Application
 
 ---
 
 ## Version 1.1
 
-* PDF Export
-* Executive Launch Memo
-* Better Visualizations
-* Historical Assessments
+* Save & Load Assessments
+* Executive Launch Memo Export
+* Richer Visualizations
+* Assessment History
 
 ---
 
@@ -239,41 +229,30 @@ The application is built around a few simple principles.
 
 * Upload PRD
 * Auto-populate Review
+* AI-generated Executive Decision Memo
 * AI-generated Recommendations
-* AI-generated Executive Memo
-* Organization Benchmarks
+* Multiple Product Domains
+* Benchmarking Across Assessments
 
 ---
 
-# AI Product Ecosystem
+# AI Product Builder Portfolio
 
-This project is part of a broader AI Product Management portfolio.
+The AI Product Readiness Index is part of a broader AI Product Management portfolio.
 
-```mermaid
-graph TD
-
-A[AI Product Playbook]
-
-A --> B[AI Product Readiness Index]
-
-A --> C[AI Evaluation Workbench]
-
-A --> D[Retail AI Agent Demo]
-```
-
-| Repository                                                                        | Purpose                                                             |
-| --------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| **[AI Product Playbook](https://github.com/sadasib/ai-product-playbook)**         | Frameworks, templates, and operating models for AI Product Managers |
-| **[AI Evaluation Workbench](https://github.com/sadasib/ai-evaluation-workbench)** | Evaluate AI quality using structured scoring and synthetic datasets |
-| **[Retail AI Agent Demo](https://github.com/sadasib/retail-ai-agent-demo)**       | Demonstrates the framework in a realistic retail AI workflow        |
+| Repository                                                                            | Purpose                                                             |
+| ------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| **[AI Product Playbook](https://github.com/sadasib/ai-product-playbook)**             | Frameworks, templates, and operating models for AI Product Managers |
+| **[AI Evaluation Workbench](https://github.com/sadasib/ai-evaluation-workbench)**     | Structured evaluation toolkit for measuring AI quality              |
+| **[Retail AI Agent Demo](https://github.com/sadasib/retail-ai-agent-synthetic-demo)** | Demonstrates the framework using a synthetic retail AI workflow     |
 
 ---
 
 # Contributing
 
-Ideas, improvements, and constructive feedback are always welcome.
+Suggestions, improvements, and constructive feedback are always welcome.
 
-If you've used the AI Product Readiness Index in your own work, I'd love to hear how it helped and what could make it even better.
+If this project helps your team improve AI launch decisions, I'd love to hear how you're using it.
 
 ---
 
@@ -281,6 +260,6 @@ If you've used the AI Product Readiness Index in your own work, I'd love to hear
 
 This repository is a personal portfolio project created for learning and knowledge sharing.
 
-All examples, datasets, and scenarios use synthetic data and publicly available concepts.
+All examples use synthetic data and publicly available concepts.
 
 Nothing in this repository contains confidential information or represents the views of my employer.
