@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from html import escape
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, List
 
 import pandas as pd
 import plotly.express as px
@@ -85,6 +86,152 @@ def set_sample_answers(
             )
 
 
+def get_readiness_grade(overall_pct: float) -> str:
+    """Convert a percentage into a simple grade."""
+    if overall_pct >= 95:
+        return "A+"
+    if overall_pct >= 90:
+        return "A"
+    if overall_pct >= 85:
+        return "A-"
+    if overall_pct >= 80:
+        return "B+"
+    if overall_pct >= 75:
+        return "B"
+    if overall_pct >= 70:
+        return "C"
+    return "Needs Review"
+
+
+def get_decision_meta(recommendation: str) -> Dict[str, str]:
+    """Return styling metadata for the launch decision banner."""
+    mapping = {
+        "Ready for Production": {
+            "label": "READY FOR PRODUCTION",
+            "emoji": "✅",
+            "subtitle": "Proceed with production rollout.",
+            "accent": "#166534",
+            "bg": "#f0fdf4",
+            "border": "#bbf7d0",
+        },
+        "Ready for Beta": {
+            "label": "READY FOR BETA",
+            "emoji": "🟡",
+            "subtitle": "Proceed with a controlled Beta rollout.",
+            "accent": "#92400e",
+            "bg": "#fffbeb",
+            "border": "#fcd34d",
+        },
+        "Additional Review Required": {
+            "label": "ADDITIONAL REVIEW REQUIRED",
+            "emoji": "🟠",
+            "subtitle": "Resolve the open issues before broad launch.",
+            "accent": "#c2410c",
+            "bg": "#fff7ed",
+            "border": "#fdba74",
+        },
+        "Not Ready": {
+            "label": "NOT READY",
+            "emoji": "🔴",
+            "subtitle": "Address critical blockers before launch.",
+            "accent": "#b91c1c",
+            "bg": "#fef2f2",
+            "border": "#fca5a5",
+        },
+    }
+    return mapping.get(
+        recommendation,
+        {
+            "label": recommendation.upper(),
+            "emoji": "ℹ️",
+            "subtitle": "Review the launch decision carefully.",
+            "accent": "#1f2937",
+            "bg": "#f8fafc",
+            "border": "#cbd5e1",
+        },
+    )
+
+
+def get_gate_emoji(gate_title: str) -> str:
+    """Return a simple emoji for each gate."""
+    mapping = {
+        "Customer Value": "🎯",
+        "AI Quality": "🤖",
+        "Trust & Safety": "🛡",
+        "Operational Readiness": "⚙",
+        "Business Readiness": "📈",
+    }
+    return mapping.get(gate_title, "•")
+
+
+def get_gate_status_meta(percentage: float) -> Dict[str, str]:
+    """Return a visual status mapping for a gate."""
+    if percentage >= 90:
+        return {
+            "label": "HEALTHY",
+            "emoji": "🟢",
+            "accent": "#166534",
+            "bg": "#f0fdf4",
+            "border": "#bbf7d0",
+        }
+    if percentage >= 75:
+        return {
+            "label": "GOOD",
+            "emoji": "🟡",
+            "accent": "#92400e",
+            "bg": "#fffbeb",
+            "border": "#fcd34d",
+        }
+    if percentage >= 60:
+        return {
+            "label": "NEEDS ATTENTION",
+            "emoji": "🟠",
+            "accent": "#c2410c",
+            "bg": "#fff7ed",
+            "border": "#fdba74",
+        }
+    return {
+        "label": "CRITICAL",
+        "emoji": "🔴",
+        "accent": "#b91c1c",
+        "bg": "#fef2f2",
+        "border": "#fca5a5",
+    }
+
+
+def build_bar(percentage: float, width: int = 12) -> str:
+    """Create a simple text progress bar."""
+    filled = max(0, min(width, int(round((percentage / 100) * width))))
+    return "█" * filled + "░" * (width - filled)
+
+
+def build_executive_summary(
+    recommendation: str,
+    blockers: List[Dict[str, Any]],
+    next_actions: List[str],
+) -> str:
+    """Create a concise executive summary sentence."""
+    if recommendation == "Ready for Production":
+        lead = "The feature shows strong readiness and can move to production."
+    elif recommendation == "Ready for Beta":
+        lead = "The feature is ready for a controlled Beta launch."
+    elif recommendation == "Additional Review Required":
+        lead = "The feature is close, but still needs another review cycle before broader launch."
+    else:
+        lead = "The feature is not ready for launch yet."
+
+    blocker_clause = ""
+    if blockers:
+        first_blocker = blockers[0].get("prompt", "a critical blocker")
+        blocker_clause = f" One critical blocker remains: {first_blocker}."
+
+    action_clause = ""
+    if next_actions:
+        action_clause = f" Recommended next action: {next_actions[0]}."
+
+    return f"{lead}{blocker_clause}{action_clause}"
+
+
 def render_sidebar(
     questions_data: Dict[str, Any],
     current_step: int,
@@ -142,15 +289,15 @@ def render_welcome(
         "across five gates before moving a feature into beta or production."
     )
 
-    c1, c2 = st.columns(2)
+    left, right = st.columns(2)
 
-    with c1:
+    with left:
         if st.button("Start Index Review", type="primary", use_container_width=True):
             clear_answer_state(questions_data)
             st.session_state["current_step"] = 1
             st.rerun()
 
-    with c2:
+    with right:
         if st.button("Load Sample Review", use_container_width=True):
             set_sample_answers(questions_data, sample_assessment)
             st.session_state["current_step"] = len(questions_data.get("gates", [])) + 1
@@ -245,55 +392,182 @@ def render_gate(
         st.caption(f"{unanswered} question(s) on this gate are still unanswered.")
 
 
-def render_results(
-    questions_data: Dict[str, Any],
-    scoring_rules: Dict[str, Any],
+def render_decision_banner(
+    overall_score: float,
+    overall_max: float,
+    overall_pct: float,
+    recommendation: str,
+    confidence: str,
 ) -> None:
-    """Render the final scorecard."""
-    st.title("AI Product Readiness Index")
-    st.subheader("Launch Readiness Report")
+    """Render the top executive decision card."""
+    meta = get_decision_meta(recommendation)
+    score_text = format_score(round(overall_score), round(overall_max))
+    grade = get_readiness_grade(overall_pct)
 
-    answers = st.session_state.get("answers", {})
-    assessment = calculate_assessment(questions_data, scoring_rules, answers)
-    recommendation_payload = build_recommendation_payload(assessment)
+    st.markdown(
+        f"""
+        <div style="
+            padding: 1.4rem 1.5rem;
+            border: 1px solid {meta["border"]};
+            border-radius: 18px;
+            background: linear-gradient(180deg, {meta["bg"]} 0%, #ffffff 100%);
+            margin-bottom: 0.8rem;
+        ">
+            <div style="
+                font-size: 0.78rem;
+                letter-spacing: 0.12em;
+                text-transform: uppercase;
+                font-weight: 800;
+                color: {meta["accent"]};
+            ">Launch Decision</div>
+            <div style="
+                margin-top: 0.35rem;
+                font-size: 1.9rem;
+                font-weight: 800;
+                line-height: 1.2;
+                color: #111827;
+            ">{meta["emoji"]} {meta["label"]}</div>
+            <div style="margin-top: 0.3rem; color: #4b5563; font-size: 0.98rem;">
+                {meta["subtitle"]}
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    overall_score = float(assessment["overall_score"])
-    overall_max = float(assessment["overall_max_score"])
-    overall_pct = float(assessment["overall_percentage"])
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Readiness Index", score_text)
+    c2.metric("Overall Readiness", f"{overall_pct:.0f}%")
+    c3.metric("Confidence", confidence)
+    c4.metric("Grade", grade)
 
-    recommendation = recommendation_payload["recommendation"]
-    confidence = recommendation_payload["confidence"]
-    top_missing_items = recommendation_payload["top_missing_items"]
-    next_actions = recommendation_payload["next_actions"]
 
-    c1, c2, c3 = st.columns(3)
+def render_summary_card(summary_text: str) -> None:
+    """Render a short executive summary card."""
+    st.markdown(
+        f"""
+        <div style="
+            padding: 1rem 1.1rem;
+            border-radius: 16px;
+            border: 1px solid #e5e7eb;
+            background: #f8fafc;
+            margin-top: 0.4rem;
+        ">
+            <div style="
+                font-size: 0.78rem;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+                color: #6b7280;
+                font-weight: 800;
+            ">Executive Summary</div>
+            <div style="
+                margin-top: 0.6rem;
+                line-height: 1.65;
+                color: #111827;
+                font-size: 0.98rem;
+            ">{escape(summary_text)}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    with c1:
-        st.metric("Readiness Index", format_score(round(overall_score), round(overall_max)))
 
-    with c2:
-        st.metric("Overall Readiness", f"{overall_pct:.1f}%")
+def render_gate_health_cards(gate_results: List[Dict[str, Any]]) -> None:
+    """Render a premium card-based gate health section."""
+    st.markdown("### Launch Gate Health")
+    st.caption("A quick view of how each launch gate is performing.")
 
-    with c3:
-        st.metric("Decision", recommendation)
+    if not gate_results:
+        st.info("No gate results available yet.")
+        return
 
-    if recommendation == "Ready for Production":
-        st.success(f"Confidence: {confidence}")
-    elif recommendation == "Ready for Beta":
-        st.info(f"Confidence: {confidence}")
-    elif recommendation == "Additional Review Required":
-        st.warning(f"Confidence: {confidence}")
-    else:
-        st.error(f"Confidence: {confidence}")
+    cols = st.columns(len(gate_results))
 
-    st.markdown("### Gate Scores")
+    for idx, gate in enumerate(gate_results):
+        pct = float(gate.get("percentage", 0.0))
+        gate_title = str(gate.get("gate_title", "Gate"))
+        status_meta = get_gate_status_meta(pct)
+        emoji = get_gate_emoji(gate_title)
+        bar = build_bar(pct)
+        score = float(gate.get("score", 0.0))
+        max_score = float(gate.get("max_score", 20.0))
+        issue_count = len(gate.get("failed_questions", []))
 
-    gate_results = assessment.get("gate_results", [])
-    if gate_results:
+        with cols[idx]:
+            st.markdown(f"### {emoji} {gate_title}")
+            st.metric("Status", status_meta["label"])
+            st.metric("Readiness", f"{pct:.0f}%")
+            st.progress(min(pct / 100, 1.0))
+            st.caption(f"{score:.1f}/{max_score:.0f} · Issues: {issue_count}")
+            st.markdown(
+                f"""
+                <div style="
+                    font-family: monospace;
+                    letter-spacing: 1px;
+                    color: #2563eb;
+                    font-size: 0.95rem;
+                    margin-top: -0.2rem;
+                ">{bar}</div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+
+def render_action_center(
+    blockers: List[Dict[str, Any]],
+    next_actions: List[str],
+) -> None:
+    """Render a compact executive action center."""
+    st.markdown("### Action Center")
+    st.caption("The highest-priority items to resolve before launch.")
+
+    left, right = st.columns(2)
+
+    with left:
+        st.markdown("#### Critical")
+        if blockers:
+            for blocker in blockers:
+                gate_title = blocker.get("gate_title", "Gate")
+                prompt = blocker.get("prompt", "")
+                st.error(f"**HIGH** — {gate_title}: {prompt}")
+        else:
+            st.success("No critical launch blockers detected.")
+
+    with right:
+        st.markdown("#### Immediate")
+        if next_actions:
+            for action in next_actions:
+                st.warning(f"**MEDIUM** — {action}")
+        else:
+            st.write("No immediate actions required.")
+
+
+def render_advanced_details(gate_results: List[Dict[str, Any]]) -> None:
+    """Render the detailed assessment section behind an expander."""
+    st.markdown("### Advanced Details")
+
+    with st.expander("View detailed gate assessment", expanded=False):
+        if not gate_results:
+            st.info("No gate results available yet.")
+            return
+
+        results_df = pd.DataFrame(
+            [
+                {
+                    "Gate": gate.get("gate_title", ""),
+                    "Score": f"{float(gate.get('score', 0.0)):.1f}/{float(gate.get('max_score', 20.0)):.0f}",
+                    "Percentage": f"{float(gate.get('percentage', 0.0)):.1f}%",
+                    "Status": get_gate_status_meta(float(gate.get("percentage", 0.0)))["label"].title(),
+                }
+                for gate in gate_results
+            ]
+        )
+        st.dataframe(results_df, use_container_width=True, hide_index=True)
+
         chart_df = pd.DataFrame(
             {
-                "Gate": [g["gate_title"] for g in gate_results],
-                "Score %": [g["percentage"] for g in gate_results],
+                "Gate": [g.get("gate_title", "") for g in gate_results],
+                "Score %": [float(g.get("percentage", 0.0)) for g in gate_results],
             }
         )
 
@@ -313,51 +587,72 @@ def render_results(
         )
         st.plotly_chart(fig, use_container_width=True)
 
-    st.markdown("### Launch Blockers")
-    blockers = assessment.get("launch_blockers", [])
-    if blockers:
-        for blocker in blockers:
-            st.error(f"**{blocker.get('gate_title', 'Gate')}** — {blocker.get('prompt', '')}")
-    else:
-        st.success("No critical launch blockers detected.")
-
-    st.markdown("### Top Risks")
-    if top_missing_items:
-        for item in top_missing_items:
-            st.write(f"• {item}")
-    else:
-        st.write("No major missing items detected.")
-
-    st.markdown("### Next Actions")
-    if next_actions:
-        for action in next_actions:
-            st.write(f"• {action}")
-    else:
-        st.write("No additional actions required.")
-
-    st.markdown("### Gate Details")
-    for gate in gate_results:
-        gate_title = gate["gate_title"]
-        gate_score = float(gate["score"])
-        gate_max_score = float(gate["max_score"])
-        gate_percentage = float(gate["percentage"])
-
-        with st.expander(
-            f"{gate_title} — {gate_score:.1f}/{gate_max_score:.0f} ({gate_percentage:.1f}%)"
-        ):
+        st.markdown("#### Gate-level issues")
+        for gate in gate_results:
+            gate_title = gate.get("gate_title", "Gate")
             failed_questions = gate.get("failed_questions", [])
-            if failed_questions:
-                for failed in failed_questions:
-                    label = failed.get("prompt", "")
-                    answer = failed.get("answer", "no answer")
-                    points = failed.get("points", 0)
-                    critical = "Critical" if failed.get("critical", False) else "Non-critical"
-                    st.write(
-                        f"• {label} — Answer: {answer.title()} — {points} points — {critical}"
-                    )
-            else:
-                st.write("All questions in this gate passed.")
+            with st.expander(
+                f"{gate_title} — {float(gate.get('score', 0.0)):.1f}/{float(gate.get('max_score', 20.0)):.0f}"
+            ):
+                if failed_questions:
+                    for failed in failed_questions:
+                        label = failed.get("prompt", "")
+                        answer = failed.get("answer", "no answer")
+                        points = failed.get("points", 0)
+                        critical = "Critical" if failed.get("critical", False) else "Non-critical"
+                        st.write(
+                            f"• {label} — Answer: {str(answer).title()} — {points} points — {critical}"
+                        )
+                else:
+                    st.write("All questions in this gate passed.")
 
+
+def render_results(
+    questions_data: Dict[str, Any],
+    scoring_rules: Dict[str, Any],
+) -> None:
+    """Render the final scorecard."""
+    st.title("AI Product Readiness Index")
+    st.subheader("Launch Readiness Report")
+
+    answers = st.session_state.get("answers", {})
+    assessment = calculate_assessment(questions_data, scoring_rules, answers)
+    recommendation_payload = build_recommendation_payload(assessment)
+
+    overall_score = float(assessment.get("overall_score", 0.0))
+    overall_max = float(assessment.get("overall_max_score", 100.0))
+    overall_pct = float(assessment.get("overall_percentage", 0.0))
+
+    recommendation = recommendation_payload.get("recommendation", "Not Ready")
+    confidence = recommendation_payload.get("confidence", "Low")
+    top_missing_items = recommendation_payload.get("top_missing_items", [])
+    next_actions = recommendation_payload.get("next_actions", [])
+
+    render_decision_banner(
+        overall_score=overall_score,
+        overall_max=overall_max,
+        overall_pct=overall_pct,
+        recommendation=recommendation,
+        confidence=confidence,
+    )
+
+    gate_results = assessment.get("gate_results", [])
+    blockers = assessment.get("launch_blockers", [])
+    summary_text = build_executive_summary(recommendation, blockers, next_actions)
+
+    st.divider()
+    render_summary_card(summary_text)
+
+    st.divider()
+    render_gate_health_cards(gate_results)
+
+    st.divider()
+    render_action_center(blockers, next_actions)
+
+    st.divider()
+    render_advanced_details(gate_results)
+
+    st.divider()
     st.markdown("### What this means")
     st.write(
         "This result should support a launch decision discussion. It does not replace product judgment; "
