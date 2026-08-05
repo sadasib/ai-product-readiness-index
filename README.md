@@ -75,7 +75,9 @@ The application then generates:
 
 ## Launch Readiness Report
 
-![Launch Readiness Report](screenshots/readiness-report.png)
+![Launch Readiness Report](screenshots/readiness-report-1.png)
+![Launch Readiness Report](screenshots/readiness-report-2.png)
+
 
 ---
 
