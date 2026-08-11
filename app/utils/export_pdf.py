@@ -1,17 +1,19 @@
 from __future__ import annotations
 
 from datetime import datetime
+from html import escape
 from io import BytesIO
 from pathlib import Path
 from typing import Any, Dict, List
 
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from reportlab.lib.enums import TA_LEFT
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.platypus import (
     HRFlowable,
+    PageBreak,
     Paragraph,
     SimpleDocTemplate,
     Spacer,
@@ -19,9 +21,8 @@ from reportlab.platypus import (
     TableStyle,
 )
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
 
-PAGE_WIDTH, PAGE_HEIGHT = letter
+ROOT_DIR = Path(__file__).resolve().parents[2]
 
 
 def _build_styles() -> Dict[str, ParagraphStyle]:
@@ -180,11 +181,14 @@ def create_pdf(
     decision_color = _decision_color(recommendation)
 
     # ---------------------------------------------------------
-    # HEADER
+    # PAGE 1 - EXECUTIVE SUMMARY
     # ---------------------------------------------------------
 
     story.append(
-        Paragraph("AI Product Readiness Index", styles["title"])
+        Paragraph(
+            "AI Product Readiness Index",
+            styles["title"],
+        )
     )
 
     story.append(
@@ -204,10 +208,6 @@ def create_pdf(
         )
     )
 
-    # ---------------------------------------------------------
-    # PRODUCT META
-    # ---------------------------------------------------------
-
     meta_data = [
         [
             Paragraph("<b>Product</b>", styles["metric_label"]),
@@ -215,9 +215,9 @@ def create_pdf(
             Paragraph("<b>Version</b>", styles["metric_label"]),
         ],
         [
-            Paragraph(product_name, styles["body"]),
-            Paragraph(generated_date, styles["body"]),
-            Paragraph(version, styles["body"]),
+            Paragraph(escape(product_name), styles["body"]),
+            Paragraph(escape(generated_date), styles["body"]),
+            Paragraph(escape(version), styles["body"]),
         ],
     ]
 
@@ -244,10 +244,6 @@ def create_pdf(
     story.append(meta_table)
     story.append(Spacer(1, 18))
 
-    # ---------------------------------------------------------
-    # DECISION + METRICS
-    # ---------------------------------------------------------
-
     decision_table = Table(
         [
             [
@@ -258,15 +254,21 @@ def create_pdf(
             ],
             [
                 Paragraph(
-                    f"<font color='{decision_color}'><b>{recommendation.upper()}</b></font>",
+                    f"<font color='{decision_color}'><b>{escape(recommendation.upper())}</b></font>",
                     styles["body"],
                 ),
                 Paragraph(
                     f"<b>{readiness_score:.0f} / {readiness_max:.0f}</b>",
                     styles["metric_value"],
                 ),
-                Paragraph(grade, styles["metric_value"]),
-                Paragraph(confidence, styles["body"]),
+                Paragraph(
+                    escape(grade),
+                    styles["metric_value"],
+                ),
+                Paragraph(
+                    escape(confidence),
+                    styles["body"],
+                ),
             ],
         ],
         colWidths=[2.45 * inch, 1.55 * inch, 0.9 * inch, 1.55 * inch],
@@ -290,26 +292,31 @@ def create_pdf(
     story.append(decision_table)
     story.append(Spacer(1, 18))
 
-    # ---------------------------------------------------------
-    # EXECUTIVE SUMMARY
-    # ---------------------------------------------------------
-
     story.append(
-        Paragraph("Executive Summary", styles["section"])
+        Paragraph(
+            "Executive Summary",
+            styles["section"],
+        )
     )
 
     story.append(
-        Paragraph(executive_summary, styles["body"])
+        Paragraph(
+            escape(executive_summary),
+            styles["body"],
+        )
     )
-
-    story.append(Spacer(1, 10))
 
     # ---------------------------------------------------------
     # PAGE 2 - GATE HEALTH
     # ---------------------------------------------------------
 
+    story.append(PageBreak())
+
     story.append(
-        Paragraph("Launch Gate Health", styles["section"])
+        Paragraph(
+            "Launch Gate Health",
+            styles["section"],
+        )
     )
 
     gate_rows = [
@@ -332,7 +339,7 @@ def create_pdf(
 
         gate_rows.append(
             [
-                Paragraph(title, styles["gate_name"]),
+                Paragraph(escape(title), styles["gate_name"]),
                 Paragraph(
                     f"{score:.1f} / {max_score:.0f}",
                     styles["body"],
@@ -342,7 +349,7 @@ def create_pdf(
                     styles["body"],
                 ),
                 Paragraph(
-                    f"<font color='{status_color}'><b>{status}</b></font>",
+                    f"<font color='{status_color}'><b>{escape(status)}</b></font>",
                     styles["gate_status"],
                 ),
             ]
@@ -370,40 +377,49 @@ def create_pdf(
     )
 
     story.append(gate_table)
-    story.append(Spacer(1, 18))
 
     # ---------------------------------------------------------
-    # ACTION CENTER
+    # PAGE 3 - ACTION CENTER
     # ---------------------------------------------------------
+
+    story.append(PageBreak())
 
     story.append(
-        Paragraph("Action Center", styles["section"])
+        Paragraph(
+            "Action Center",
+            styles["section"],
+        )
     )
 
     action_rows = []
 
-    if critical_items:
+    for critical_item in critical_items:
         action_rows.append(
             [
                 Paragraph(
                     "<font color='#B91C1C'><b>CRITICAL</b></font>",
                     styles["body"],
                 ),
-                Paragraph(critical_items[0], styles["body"]),
+                Paragraph(
+                    escape(critical_item),
+                    styles["body"],
+                ),
             ]
         )
 
-    if immediate_actions:
-        for action in immediate_actions[:4]:
-            action_rows.append(
-                [
-                    Paragraph(
-                        "<font color='#92400E'><b>IMMEDIATE</b></font>",
-                        styles["body"],
-                    ),
-                    Paragraph(action, styles["body"]),
-                ]
-            )
+    for action in immediate_actions[:4]:
+        action_rows.append(
+            [
+                Paragraph(
+                    "<font color='#92400E'><b>IMMEDIATE</b></font>",
+                    styles["body"],
+                ),
+                Paragraph(
+                    escape(action),
+                    styles["body"],
+                ),
+            ]
+        )
 
     if not action_rows:
         action_rows.append(
@@ -440,10 +456,6 @@ def create_pdf(
 
     story.append(action_table)
     story.append(Spacer(1, 20))
-
-    # ---------------------------------------------------------
-    # FOOTER
-    # ---------------------------------------------------------
 
     story.append(
         HRFlowable(
