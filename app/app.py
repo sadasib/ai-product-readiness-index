@@ -17,6 +17,7 @@ from utils.helpers import (
 )
 from utils.recommendations import build_recommendation_payload
 from utils.report_builder import build_report_payload
+from utils.export_pdf import create_pdf
 from utils.scoring import calculate_assessment
 
 
@@ -830,7 +831,10 @@ def render_results(
     # Keep the payload in session state so PR3 can use it
     # directly for the download button without recalculating
     # the assessment.
+    pdf_bytes = create_pdf(**report_payload)
+
     st.session_state["report_payload"] = report_payload
+    st.session_state["report_pdf"] = pdf_bytes
 
     # ---------------------------------------------------------
     # EXECUTIVE HERO
