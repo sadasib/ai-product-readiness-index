@@ -807,18 +807,13 @@ def render_results(
         "Low",
     )
 
-    top_missing_items = recommendation_payload.get(
-        "top_missing_items",
-        [],
-    )
-
     next_actions = recommendation_payload.get(
         "next_actions",
         [],
     )
 
     # ---------------------------------------------------------
-    # BUILD THE REPORT PAYLOAD
+    # BUILD LIVE REPORT PAYLOAD
     # ---------------------------------------------------------
 
     report_payload = build_report_payload(
@@ -828,10 +823,9 @@ def render_results(
         version="1.1",
     )
 
-    # Keep the payload in session state so PR3 can use it
-    # directly for the download button without recalculating
-    # the assessment.
-    pdf_bytes = create_pdf(**report_payload)
+    pdf_bytes = create_pdf(
+        **report_payload
+    )
 
     st.session_state["report_payload"] = report_payload
     st.session_state["report_pdf"] = pdf_bytes
@@ -907,6 +901,26 @@ def render_results(
     )
 
     # ---------------------------------------------------------
+    # DOWNLOAD
+    # ---------------------------------------------------------
+
+    st.divider()
+
+    st.markdown("### Share the Launch Review")
+    st.caption(
+        "Download the current assessment as an executive-ready PDF."
+    )
+
+    st.download_button(
+        label="Export Executive Report",
+        data=st.session_state["report_pdf"],
+        file_name="AI_Product_Readiness_Report.pdf",
+        mime="application/pdf",
+        type="primary",
+        use_container_width=True,
+    )
+
+    # ---------------------------------------------------------
     # CONTEXT
     # ---------------------------------------------------------
 
@@ -946,11 +960,19 @@ def render_results(
             clear_answer_state(
                 questions_data
             )
+
             st.session_state["current_step"] = 0
+
             st.session_state.pop(
                 "report_payload",
                 None,
             )
+
+            st.session_state.pop(
+                "report_pdf",
+                None,
+            )
+
             st.rerun()
 
 
