@@ -12,9 +12,6 @@ from app.utils.scoring import (
 )
 
 
-ROOT_DIR = Path(__file__).resolve().parents[1]
-DATA_DIR = ROOT_DIR / "data"
-
 
 ANSWER_SCORES = {
     "yes": 5,
