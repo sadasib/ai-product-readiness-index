@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 from app.utils.scoring import (
     calculate_assessment,
     calculate_gate_score,
