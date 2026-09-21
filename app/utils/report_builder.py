@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from copy import deepcopy
+from typing import Any, Dict, List, Optional
 
 
 def get_readiness_grade(overall_percentage: float) -> str:
@@ -57,11 +58,17 @@ def build_executive_summary(
         blocker_text = " No critical launch blockers remain."
 
     if next_actions:
-        action_text = f" Highest-priority next action: {next_actions[0]}"
+        action_text = (
+            f" Highest-priority next action: {next_actions[0]}"
+        )
     else:
         action_text = ""
 
-    return f"{lead}{blocker_text}{action_text}".strip()
+    return (
+        f"{lead}"
+        f"{blocker_text}"
+        f"{action_text}"
+    ).strip()
 
 
 def extract_critical_items(
@@ -71,11 +78,24 @@ def extract_critical_items(
     critical_items: List[str] = []
 
     for blocker in launch_blockers:
-        gate_title = str(blocker.get("gate_title", "")).strip()
-        prompt = str(blocker.get("prompt", "")).strip()
+        gate_title = str(
+            blocker.get(
+                "gate_title",
+                "",
+            )
+        ).strip()
+
+        prompt = str(
+            blocker.get(
+                "prompt",
+                "",
+            )
+        ).strip()
 
         if gate_title and prompt:
-            critical_items.append(f"{gate_title}: {prompt}")
+            critical_items.append(
+                f"{gate_title}: {prompt}"
+            )
         elif prompt:
             critical_items.append(prompt)
 
@@ -86,36 +106,57 @@ def build_report_payload(
     assessment_result: Dict[str, Any],
     recommendation_payload: Dict[str, Any],
     product_name: str = "AI Product Assessment",
+    product_context: Optional[Dict[str, Any]] = None,
     version: str = "1.1",
 ) -> Dict[str, Any]:
     """
-    Translate live application results into the payload required
-    by the PDF exporter.
+    Translate live application results and product context
+    into the payload required by the PDF exporter.
     """
     overall_score = float(
-        assessment_result.get("overall_score", 0.0)
+        assessment_result.get(
+            "overall_score",
+            0.0,
+        )
     )
+
     overall_max_score = float(
-        assessment_result.get("overall_max_score", 100.0)
+        assessment_result.get(
+            "overall_max_score",
+            100.0,
+        )
     )
+
     overall_percentage = float(
-        assessment_result.get("overall_percentage", 0.0)
+        assessment_result.get(
+            "overall_percentage",
+            0.0,
+        )
     )
 
     recommendation = str(
         recommendation_payload.get(
             "recommendation",
-            assessment_result.get("recommendation", "Not Ready"),
+            assessment_result.get(
+                "recommendation",
+                "Not Ready",
+            ),
         )
     )
 
     confidence = str(
-        recommendation_payload.get("confidence", "Low")
+        recommendation_payload.get(
+            "confidence",
+            "Low",
+        )
     )
 
     next_actions = [
         str(action)
-        for action in recommendation_payload.get("next_actions", [])
+        for action in recommendation_payload.get(
+            "next_actions",
+            [],
+        )
         if str(action).strip()
     ]
 
@@ -129,12 +170,27 @@ def build_report_payload(
         [],
     )
 
+    context_snapshot = deepcopy(
+        product_context or {}
+    )
+
+    resolved_product_name = str(
+        context_snapshot.get(
+            "product_name",
+            product_name,
+        )
+        or product_name
+    ).strip()
+
     return {
-        "product_name": product_name,
+        "product_name": resolved_product_name,
+        "product_context": context_snapshot,
         "recommendation": recommendation,
         "readiness_score": overall_score,
         "readiness_max": overall_max_score,
-        "grade": get_readiness_grade(overall_percentage),
+        "grade": get_readiness_grade(
+            overall_percentage
+        ),
         "confidence": confidence,
         "executive_summary": build_executive_summary(
             recommendation=recommendation,

@@ -4,7 +4,7 @@ from datetime import datetime
 from html import escape
 from io import BytesIO
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_LEFT
@@ -154,6 +154,7 @@ def create_pdf(
     gate_results: List[Dict[str, Any]],
     critical_items: List[str],
     immediate_actions: List[str],
+    product_context: Optional[Dict[str, Any]] = None,
     version: str = "1.1",
 ) -> bytes:
     """
@@ -208,23 +209,61 @@ def create_pdf(
         )
     )
 
-    meta_data = [
-        [
-            Paragraph("<b>Product</b>", styles["metric_label"]),
-            Paragraph("<b>Generated</b>", styles["metric_label"]),
-            Paragraph("<b>Version</b>", styles["metric_label"]),
-        ],
-        [
-            Paragraph(escape(product_name), styles["body"]),
-            Paragraph(escape(generated_date), styles["body"]),
-            Paragraph(escape(version), styles["body"]),
-        ],
-    ]
+    context = product_context or {}
+    product_type = str(context.get("product_type", "")).strip()
+    launch_stage = str(context.get("launch_stage", "")).strip()
+    assessment_owner = str(context.get("assessment_owner", "")).strip()
 
-    meta_table = Table(
-        meta_data,
-        colWidths=[3.6 * inch, 1.65 * inch, 1.2 * inch],
+    has_context = any(
+        [product_type, launch_stage, assessment_owner]
     )
+
+    if has_context:
+        meta_data = [
+            [
+                Paragraph("<b>Product</b>", styles["metric_label"]),
+                Paragraph("<b>Launch Stage</b>", styles["metric_label"]),
+                Paragraph("<b>Product Type</b>", styles["metric_label"]),
+            ],
+            [
+                Paragraph(escape(product_name), styles["body"]),
+                Paragraph(escape(launch_stage or "-"), styles["body"]),
+                Paragraph(escape(product_type or "-"), styles["body"]),
+            ],
+            [
+                Paragraph("<b>Assessment Owner</b>", styles["metric_label"]),
+                Paragraph("<b>Generated</b>", styles["metric_label"]),
+                Paragraph("<b>Version</b>", styles["metric_label"]),
+            ],
+            [
+                Paragraph(escape(assessment_owner or "-"), styles["body"]),
+                Paragraph(escape(generated_date), styles["body"]),
+                Paragraph(escape(version), styles["body"]),
+            ],
+        ]
+
+        meta_table = Table(
+            meta_data,
+            colWidths=[3.6 * inch, 1.65 * inch, 1.2 * inch],
+        )
+    else:
+        meta_data = [
+            [
+                Paragraph("<b>Product</b>", styles["metric_label"]),
+                Paragraph("<b>Generated</b>", styles["metric_label"]),
+                Paragraph("<b>Version</b>", styles["metric_label"]),
+            ],
+            [
+                Paragraph(escape(product_name), styles["body"]),
+                Paragraph(escape(generated_date), styles["body"]),
+                Paragraph(escape(version), styles["body"]),
+            ],
+        ]
+
+        meta_table = Table(
+            meta_data,
+            colWidths=[3.6 * inch, 1.65 * inch, 1.2 * inch],
+        )
 
     meta_table.setStyle(
         TableStyle(
@@ -541,6 +580,11 @@ def create_sample_pdf() -> bytes:
             "Document the rollback strategy.",
             "Define monitoring and alert thresholds.",
         ],
+        product_context={
+            "product_type": "AI Agent",
+            "launch_stage": "Beta",
+            "assessment_owner": "Product Management",
+        },
     )
 
 
