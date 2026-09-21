@@ -15,6 +15,16 @@ from utils.assessment_history import (
     get_assessment_history,
     save_assessment,
 )
+from utils.product_context import (
+    PRODUCT_TYPES,
+    LAUNCH_STAGES,
+    build_sample_product_context,
+    create_product_context_snapshot,
+    empty_product_context,
+    get_product_display_name,
+    normalize_product_context,
+    validate_product_context,
+)
 from utils.helpers import (
     answer_label,
     build_progress,
@@ -35,6 +45,8 @@ QUESTIONS_PATH = DATA_DIR / "questions.json"
 SCORING_RULES_PATH = DATA_DIR / "scoring_rules.json"
 SAMPLE_ASSESSMENT_PATH = DATA_DIR / "sample_assessment.json"
 
+PRODUCT_CONTEXT_STEP = 1
+FIRST_GATE_STEP = 2
 
 st.set_page_config(
     page_title="AI Product Readiness Index",
@@ -79,8 +91,11 @@ def get_stage_label(
     if current_step == 0:
         return "Not started"
 
-    if 1 <= current_step <= gate_count:
-        return f"Gate {current_step}/{gate_count}"
+    if current_step == PRODUCT_CONTEXT_STEP:
+        return "Product context"
+
+    if FIRST_GATE_STEP <= current_step <= gate_count + 1:
+        return f"Gate {current_step - 1}/{gate_count}"
 
     return "Final report"
 
@@ -120,6 +135,23 @@ def start_new_assessment(
     )
 
 
+def start_product_context() -> None:
+    """Initialize a fresh product-context form."""
+    context = empty_product_context()
+    st.session_state["product_context"] = context
+
+    st.session_state["product_context_name"] = context["product_name"]
+    st.session_state["product_context_type"] = (
+        context["product_type"]
+    )
+    st.session_state["product_context_stage"] = (
+        context["launch_stage"]
+    )
+    st.session_state["product_context_owner"] = (
+        context["assessment_owner"]
+    )
+
+
 def set_sample_answers(
     questions_data: Dict[str, Any],
     sample_assessment: Dict[str, Any],
@@ -133,6 +165,22 @@ def set_sample_answers(
     st.session_state["answers"] = dict(answers)
     st.session_state["current_assessment_id"] = None
     st.session_state["selected_history_id"] = None
+    sample_context = build_sample_product_context()
+    st.session_state["product_context"] = (
+        sample_context
+    )
+    st.session_state["product_context_name"] = sample_context[
+        "product_name"
+    ]
+    st.session_state["product_context_type"] = sample_context[
+        "product_type"
+    ]
+    st.session_state["product_context_stage"] = sample_context[
+        "launch_stage"
+    ]
+    st.session_state["product_context_owner"] = sample_context[
+        "assessment_owner"
+    ]
 
     for gate in questions_data.get("gates", []):
         for question in gate.get("questions", []):
@@ -161,6 +209,16 @@ def generate_assessment_id() -> str:
     )
 
     return f"assessment_{timestamp}"
+
+
+def get_current_product_context() -> Dict[str, str]:
+    """Return the normalized current product context."""
+    return normalize_product_context(
+        st.session_state.get(
+            "product_context",
+            empty_product_context(),
+        )
+    )
 
 
 # -------------------------------------------------------------------
@@ -470,10 +528,13 @@ def render_sidebar(
         if current_step == 0:
             st.write("**Step:** Start")
 
-        elif 1 <= current_step <= gate_count:
+        elif current_step == PRODUCT_CONTEXT_STEP:
+            st.write("**Step:** Product context")
+
+        elif FIRST_GATE_STEP <= current_step <= gate_count + 1:
             st.write(
                 f"**Step:** "
-                f"{current_step}/{gate_count}"
+                f"{current_step - 1}/{gate_count}"
             )
 
         else:
@@ -557,7 +618,15 @@ def render_history_section(
                 else "Unknown date"
             )
 
+            product_name = str(
+                record.get(
+                    "product_name",
+                    "AI Product Assessment",
+                )
+            )
+
             display_label = (
+                f"{product_name} · "
                 f"{recommendation} · "
                 f"{score:.1f} · "
                 f"{display_date}"
@@ -641,6 +710,8 @@ def render_welcome(
             start_new_assessment(
                 questions_data
             )
+            start_product_context()
+            st.session_state["current_step"] = PRODUCT_CONTEXT_STEP
 
             st.rerun()
 
@@ -661,7 +732,7 @@ def render_welcome(
                     "gates",
                     [],
                 )
-            ) + 1
+            ) + 2
 
             st.rerun()
 
@@ -687,6 +758,114 @@ def render_welcome(
         "flags launch blockers, and produces a "
         "launch recommendation."
     )
+
+
+# -------------------------------------------------------------------
+# PRODUCT CONTEXT
+# -------------------------------------------------------------------
+
+def render_product_context() -> None:
+    """Render the product context form shown before the gates."""
+    current_context = normalize_product_context(
+        st.session_state.get(
+            "product_context",
+            empty_product_context(),
+        )
+    )
+
+    st.title("AI Product Readiness Index")
+    st.subheader("Tell us about the product")
+    st.caption(
+        "Add a little context so the assessment, history, and report "
+        "are easy to identify."
+    )
+
+    product_name = st.text_input(
+        "Product name *",
+        value=current_context.get("product_name", ""),
+        placeholder="e.g. Customer Support Copilot",
+        key="product_context_name",
+    )
+
+    product_type_options = ["Select a product type", *PRODUCT_TYPES]
+    product_type_value = current_context.get("product_type", "")
+    product_type_index = (
+        product_type_options.index(product_type_value)
+        if product_type_value in product_type_options
+        else 0
+    )
+
+    product_type = st.selectbox(
+        "Product type",
+        product_type_options,
+        index=product_type_index,
+        key="product_context_type",
+    )
+
+    launch_stage_options = ["Select launch stage", *LAUNCH_STAGES]
+    launch_stage_value = current_context.get("launch_stage", "")
+    launch_stage_index = (
+        launch_stage_options.index(launch_stage_value)
+        if launch_stage_value in launch_stage_options
+        else 0
+    )
+
+    launch_stage = st.selectbox(
+        "Target launch stage *",
+        launch_stage_options,
+        index=launch_stage_index,
+        key="product_context_stage",
+    )
+
+    assessment_owner = st.text_input(
+        "Assessment owner",
+        value=current_context.get("assessment_owner", ""),
+        placeholder="e.g. Product Management",
+        key="product_context_owner",
+    )
+
+    st.caption("* Required")
+
+    c1, c2 = st.columns(2)
+
+    with c1:
+        if st.button(
+            "Back",
+            use_container_width=True,
+        ):
+            st.session_state["current_step"] = 0
+            st.rerun()
+
+    with c2:
+        if st.button(
+            "Continue to Assessment",
+            type="primary",
+            use_container_width=True,
+        ):
+            context = {
+                "product_name": product_name,
+                "product_type": (
+                    "" if product_type == "Select a product type"
+                    else product_type
+                ),
+                "launch_stage": (
+                    "" if launch_stage == "Select launch stage"
+                    else launch_stage
+                ),
+                "assessment_owner": assessment_owner,
+            }
+
+            is_valid, errors = validate_product_context(context)
+
+            if not is_valid:
+                for error in errors:
+                    st.error(error)
+            else:
+                st.session_state["product_context"] = (
+                    create_product_context_snapshot(context)
+                )
+                st.session_state["current_step"] = FIRST_GATE_STEP
+                st.rerun()
 
 
 # -------------------------------------------------------------------
@@ -1315,6 +1494,46 @@ def render_historical_assessment(
         f"{display_date}"
     )
 
+    product_context = normalize_product_context(
+        record.get(
+            "product_context",
+            {},
+        )
+    )
+
+    product_name = str(
+        record.get(
+            "product_name",
+            product_context.get(
+                "product_name",
+                "AI Product Assessment",
+            ),
+        )
+    )
+
+    context_items = [
+        f"**Product:** {product_name}",
+    ]
+
+    if product_context.get("product_type"):
+        context_items.append(
+            f"**Type:** {product_context['product_type']}"
+        )
+
+    if product_context.get("launch_stage"):
+        context_items.append(
+            f"**Launch stage:** {product_context['launch_stage']}"
+        )
+
+    if product_context.get("assessment_owner"):
+        context_items.append(
+            f"**Owner:** {product_context['assessment_owner']}"
+        )
+
+    st.caption(
+        " · ".join(context_items)
+    )
+
     assessment_result = record.get(
         "assessment_result",
         {},
@@ -1491,9 +1710,34 @@ def render_results(
         "AI Product Readiness Index"
     )
 
-    st.subheader(
-        "Launch Readiness Report"
+    product_context = get_current_product_context()
+    product_name = get_product_display_name(
+        product_context
     )
+
+    st.subheader(
+        f"Launch Readiness Report — {product_name}"
+    )
+
+    context_summary = []
+
+    if product_context.get("product_type"):
+        context_summary.append(
+            f"Type: {product_context['product_type']}"
+        )
+
+    if product_context.get("launch_stage"):
+        context_summary.append(
+            f"Launch stage: {product_context['launch_stage']}"
+        )
+
+    if product_context.get("assessment_owner"):
+        context_summary.append(
+            f"Owner: {product_context['assessment_owner']}"
+        )
+
+    if context_summary:
+        st.caption(" · ".join(context_summary))
 
     answers = st.session_state.get(
         "answers",
@@ -1561,7 +1805,8 @@ def render_results(
     report_payload = build_report_payload(
         assessment_result=assessment,
         recommendation_payload=recommendation_payload,
-        product_name="AI Product Assessment",
+        product_name=product_name,
+        product_context=product_context,
         version="1.1",
     )
 
@@ -1707,7 +1952,8 @@ def render_results(
                     assessment_result=assessment,
                     recommendation_payload=recommendation_payload,
                     report_payload=report_payload,
-                    product_name="AI Product Assessment",
+                    product_context=product_context,
+                    product_name=product_name,
                     version="1.1",
                     assessment_id=current_assessment_id,
                 )
@@ -1847,6 +2093,11 @@ def main() -> None:
             "answers"
         ] = {}
 
+    if "product_context" not in st.session_state:
+        st.session_state[
+            "product_context"
+        ] = empty_product_context()
+
     if "assessment_history" not in st.session_state:
         st.session_state[
             "assessment_history"
@@ -1869,7 +2120,7 @@ def main() -> None:
         )
     )
 
-    total_steps = gate_count + 2
+    total_steps = gate_count + 3
 
     current_step = int(
         st.session_state[
@@ -1934,16 +2185,17 @@ def main() -> None:
 
         return
 
-    if 1 <= current_step <= gate_count:
-        gate = gates[
-            get_gate_index(
-                current_step
-            )
-        ]
+    if current_step == PRODUCT_CONTEXT_STEP:
+        render_product_context()
+        return
+
+    if FIRST_GATE_STEP <= current_step <= gate_count + 1:
+        gate_index = current_step - FIRST_GATE_STEP
+        gate = gates[gate_index]
 
         render_gate(
             gate=gate,
-            step_number=current_step,
+            step_number=current_step - 1,
             gate_count=gate_count,
         )
 

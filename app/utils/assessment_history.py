@@ -10,6 +10,7 @@ def create_assessment_record(
     assessment_result: Dict[str, Any],
     recommendation_payload: Dict[str, Any],
     report_payload: Optional[Dict[str, Any]] = None,
+    product_context: Optional[Dict[str, Any]] = None,
     product_name: str = "AI Product Assessment",
     version: str = "1.1",
     assessment_id: Optional[str] = None,
@@ -17,8 +18,8 @@ def create_assessment_record(
     """
     Create an immutable snapshot of a completed assessment.
 
-    The record stores the inputs and outputs required to revisit
-    the assessment later without recalculating it.
+    The record stores the inputs, product context, and outputs
+    required to revisit the assessment later without recalculating it.
     """
     created_at = datetime.now(timezone.utc).isoformat()
 
@@ -35,7 +36,10 @@ def create_assessment_record(
     recommendation = str(
         recommendation_payload.get(
             "recommendation",
-            assessment_result.get("recommendation", "Not Ready"),
+            assessment_result.get(
+                "recommendation",
+                "Not Ready",
+            ),
         )
     )
 
@@ -51,10 +55,23 @@ def create_assessment_record(
         [],
     )
 
+    context_snapshot = deepcopy(
+        product_context or {}
+    )
+
+    resolved_product_name = str(
+        context_snapshot.get(
+            "product_name",
+            product_name,
+        )
+        or product_name
+    ).strip()
+
     record = {
         "id": record_id,
         "created_at": created_at,
-        "product_name": product_name,
+        "product_name": resolved_product_name,
+        "product_context": context_snapshot,
         "version": version,
         "overall_score": overall_score,
         "overall_percentage": overall_percentage,
