@@ -1,60 +1,40 @@
 from __future__ import annotations
 
-
-from html import escape
 from pathlib import Path
-from typing import Any, Dict, List
-from views.welcome import render_welcome
-from views.assessment import render_gate
-from views.results import render_results
-from views.product_context import render_product_context
-from views.history import (
-    render_historical_assessment,
-    render_history_section,
-)
+from typing import Any, Dict
+
+import streamlit as st
 
 from state import (
-    clear_answer_state,
-    generate_assessment_id,
-    get_current_product_context,
-    get_gate_index,
     get_stage_label,
     set_sample_answers,
     start_new_assessment,
     start_product_context,
 )
 
-import pandas as pd
-import plotly.express as px
-import streamlit as st
-
-from utils.assessment_history import (
-    create_assessment_record,
-    get_assessment_by_id,
-    get_assessment_history,
-    save_assessment,
-)
-from utils.product_context import (
-    PRODUCT_TYPES,
-    LAUNCH_STAGES,
-    build_sample_product_context,
-    create_product_context_snapshot,
-    empty_product_context,
-    get_product_display_name,
-    normalize_product_context,
-    validate_product_context,
-)
 from utils.helpers import (
-    answer_label,
     build_progress,
     count_questions,
-    format_score,
     load_json,
 )
-from utils.recommendations import build_recommendation_payload
-from utils.report_builder import build_report_payload
-from utils.export_pdf import create_pdf
-from utils.scoring import calculate_assessment
+
+from utils.assessment_history import (
+    get_assessment_by_id,
+    get_assessment_history,
+)
+
+from utils.product_context import (
+    empty_product_context,
+)
+
+from views.assessment import render_gate
+from views.history import (
+    render_historical_assessment,
+    render_history_section,
+)
+from views.product_context import render_product_context
+from views.results import render_results
+from views.welcome import render_welcome
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
